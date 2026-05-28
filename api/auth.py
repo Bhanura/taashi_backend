@@ -19,15 +19,20 @@ async def register_user(user: UserCreate):
     # 2. Hash the password securely
     hashed_password = get_password_hash(user.password)
 
+    # BUG FIX: Safely check if the date exists before converting
+    dob_datetime = None
+    if user.date_of_birth:
+        dob_datetime = datetime.combine(user.date_of_birth, datetime.min.time())
+
     # 3. prepare the data for the database
     user_db_dict = {
         "first_name": user.first_name,
         "last_name": user.last_name,
-        "date_of_birth": datetime.combine(user.date_of_birth, datetime.min.time()),
+        "date_of_birth": dob_datetime,
         "gender": user.gender,
         "email": user.email,
         "hashed_password": hashed_password,
-        "role": user.role
+        "role": "user"
     }
 
     # 4. insert the new user into MongoDB
@@ -38,6 +43,8 @@ async def register_user(user: UserCreate):
         id=str(result.inserted_id),
         first_name=user.first_name,
         last_name=user.last_name,
+        date_of_birth=user.date_of_birth,
+        gender=user.gender,
         email=user.email,
         role=user_db_dict["role"]        
     )

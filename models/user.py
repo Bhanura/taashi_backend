@@ -10,7 +10,6 @@ class UserCreate(BaseModel):
     gender: Optional[str] = None
     email: EmailStr
     password: str = Field(..., min_length=6)
-    role: str = Field(default="user")
 
 # This is the schema for returning user data (hiding the password!)
 class UserResponse(BaseModel):
