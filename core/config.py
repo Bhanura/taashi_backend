@@ -11,6 +11,9 @@ class Settings(BaseSettings):
     SMTP_USERNAME: str
     SMTP_PASSWORD: str
 
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440 # 24 hours
+    ALGORITHM: str = "HS256"
+
     class Config:
         env_file = ".env"
 

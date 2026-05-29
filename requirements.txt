@@ -2,7 +2,7 @@ fastapi
 uvicorn[standard]
 motor
 passlib[bcrypt]
-python-jose[cryptography]
+pyJWT
 pydantic[email]
 pydantic-settings
 python-multipart
