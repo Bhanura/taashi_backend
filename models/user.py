@@ -31,3 +31,12 @@ class UserInDB(BaseModel):
     email: EmailStr
     hashed_password: str
     role: str
+
+class ForgetPasswordRequest(BaseModel):
+    email: EmailStr
+
+class ResetPasswordRequest(BaseModel):
+    email: EmailStr
+    otp: str
+    new_password: str = Field(..., min_length=6)
+    

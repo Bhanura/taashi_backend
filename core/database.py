@@ -9,3 +9,4 @@ db = client[settings.DATABASE_NAME]
 
 # Get the users collection
 user_collection = db.get_collection("users")
+otp_collection = db.get_collection("otps")

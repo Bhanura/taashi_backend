@@ -1,12 +1,17 @@
 from fastapi import APIRouter, HTTPException, status, Depends
+import random
+from datetime import timedelta
 from fastapi.security import OAuth2PasswordRequestForm
-from models.user import UserCreate, UserResponse
-from core.database import user_collection
+
+from models.user import UserCreate, UserResponse, ForgetPasswordRequest, ResetPasswordRequest
+from core.database import user_collection, otp_collection
 from core.security import get_password_hash
 from datetime import datetime, timedelta 
 from models.token import AccessToken
 from core.config import settings
 from core.security import create_access_token, verify_password
+from api.deps import get_current_user, require_admin
+from core.email import send_otp_email
 
 router = APIRouter()
 
@@ -77,3 +82,86 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
 
     # 4. return the token to the frontend
     return AccessToken(access_token=access_token, token_type="bearer")
+
+@router.get("/me", response_model=UserResponse)
+async def get_user_profile(current_user: dict = Depends(get_current_user)):
+    """
+    A protected route that returns the logged-in user's profile informations.
+    Any authenticated user can access this.
+    """
+
+    return UserResponse(
+        id=str(current_user["_id"]),
+        first_name=current_user["first_name"],
+        last_name=current_user["last_name"],
+        date_of_birth=current_user.get("date_of_birth"),
+        gender=current_user.get("gender"),
+        email=current_user["email"],
+        role=current_user["role"]
+    )
+
+@router.get("/admin-only")
+async def test_admin_route(current_admin: dict = Depends(require_admin)):
+    """
+    Strictly protected route that will throw a 403 forbidden error
+    unless the logged-in user has a role of 'admin' in the database.
+    """
+    return {
+        "message": f"Welcome to control center, Admin {current_admin['first_name']}!"
+    }
+
+@router.post("/forgot-password")
+async def forget_password(request: ForgetPasswordRequest):
+    # 1. Look for the user
+    user = await user_collection.find_one({"email": request.email})
+
+    # SECURITY PRO TIP: Even if the email doesn't exist, we return a success message.
+    # This prevents hackers from using this endpoint to guess registered emails!
+    if not user:
+        return {"message": "If that email is registered, an OTP has sent. If you don't see it, please check your spam folder."}
+    
+    # 2. Genarate a random 6-digit OTP and an expiration time.
+    otp = str(random.randint(100000, 999999))
+    expires_at = datetime.utcnow() + timedelta(minutes=settings.OTP_EXPIRE_MINUTES)
+
+    # 3. Save the OTP to MongoDB (using upsert so if they request twice, it will overwrite the old OTP)
+    await otp_collection.update_one(
+        {"email": request.email},
+        {"$set": {"otp": otp, "expires_at": expires_at}},
+        upsert=True
+    )
+
+    # 4. Send the email!
+    await send_otp_email(to_email=request.email, otp=otp)
+
+    return {"message": "If that email is registered, an OTP has sent. If you don't see it, please check your spam folder."}
+
+@router.post("/reset-password")
+async def reset_password(request: ResetPasswordRequest):
+    # 1. Find the OTP record in MongoDB
+    otp_record = await otp_collection.find_one({
+        "email": request.email,
+        "otp": request.otp,
+    })
+
+    if not otp_record:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid OTP or email"
+        )
+    
+    # 2. Check if the OTP has expired
+    if datetime.utcnow() > otp_record["expires_at"]:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="OTP has expired. Please request a new one."
+        )
+    
+    # 3. Hash the new password and update the user's document.
+    new_hashed_password = get_password_hash(request.new_password)
+    await user_collection.update_one(
+        {"email": request.email},
+        {"$set": {"hashed_password": new_hashed_password}}
+    )
+
+    return {"message": "Password has been reset successfully. You can now log in with your new password."}
