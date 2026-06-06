@@ -164,4 +164,7 @@ async def reset_password(request: ResetPasswordRequest):
         {"$set": {"hashed_password": new_hashed_password}}
     )
 
+    # 4. Delete the used OTP so it cannot be used again
+    await otp_collection.delete_one({"email": request.email})
+
     return {"message": "Password has been reset successfully. You can now log in with your new password."}
