@@ -16,6 +16,8 @@ class Settings(BaseSettings):
 
     OTP_EXPIRE_MINUTES: int = 5
 
+    ALLOWED_ORIGINS: str
+
     class Config:
         env_file = ".env"
 
