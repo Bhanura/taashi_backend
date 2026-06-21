@@ -9,3 +9,4 @@ python-multipart
 python-dotenv
 aiosmtplib
 argon2-cffi
+python-dateutil
