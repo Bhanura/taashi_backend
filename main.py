@@ -3,12 +3,23 @@ from fastapi.middleware.cors import CORSMiddleware
 from api.auth import router as auth_router
 from core.config import settings
 from api.time_management import router as time_router
+from contextlib import asynccontextmanager
+from core.scheduler import scheduler
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    print("🚀 Starting up Taashi Backend...")
+    scheduler.start()
+    yield
+    print("🛑 Shutting down Taashi Backend...")
+    scheduler.shutdown()
 
 # Initialize FastAPI app
 app = FastAPI(
     title="Taashi Backend API",
     description="Backend for Assistant Taashi",
-    version="1.0.0"
+    version="1.0.0",
+    lifespan=lifespan
 )
 
 # Configure CORS dynamically

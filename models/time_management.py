@@ -1,6 +1,6 @@
 from pydantic import BaseModel, Field, ConfigDict
 from typing import Optional
-from datetime import datetime, time
+from datetime import datetime, time, timezone
 from enum import Enum
 
 # Enums (Locking down our specific choices)
@@ -16,6 +16,7 @@ class Project(BaseModel):
     title: str
     description: Optional[str] = None
     deadline: datetime
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     health_score: float = 1.0
 
     model_config = ConfigDict(populate_by_name=True)
