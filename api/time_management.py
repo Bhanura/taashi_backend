@@ -112,6 +112,7 @@ async def create_routine(
 @router.get("/timeline/{target_date}")
 async def get_daily_timeline(
     target_date: str,
+    offset: int = Query(0, description="Timezone offset in minutes from UTC"),
     current_user: dict = Depends(require_user)
 ):
     """
@@ -122,8 +123,12 @@ async def get_daily_timeline(
     try:
         parsed_date = datetime.strptime(target_date, "%Y-%m-%d")
 
-        start_of_day = parsed_date.replace(hour=0, minute=0, second=0, tzinfo=timezone.utc)
-        end_of_day = parsed_date.replace(hour=23, minute=59, second=59, tzinfo=timezone.utc)
+        local_start = parsed_date.replace(hour=0, minute=0, second=0, tzinfo=timezone.utc)
+        local_end = parsed_date.replace(hour=23, minute=59, second=59, tzinfo=timezone.utc)
+
+        start_of_day = local_start - timedelta(minutes=offset)
+        end_of_day = local_end - timedelta(minutes=offset)
+        
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid date format. Use YYYY-MM-DD.")
     
@@ -144,8 +149,8 @@ async def get_daily_timeline(
     total_free_minutes = 0
 
     for task in tasks:
-        task_start = task["start_time"].replace(tzinfo=timezone.utc)
-        task_end = task["end_time"].replace(tzinfo=timezone.utc)
+        task_start = task["start_time"].replace(tzinfo=timezone.utc) - timedelta(minutes=offset)
+        task_end = task["end_time"].replace(tzinfo=timezone.utc) - timedelta(minutes=offset)
 
         if task.get("status") == TaskStatus.COMPLETED.value:
             completed_tasks += 1
